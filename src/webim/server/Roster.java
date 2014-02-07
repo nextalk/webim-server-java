@@ -45,6 +45,10 @@ public class Roster {
 		members.add(new Member(grpOid, userOid));
 	}
 
+	public synchronized void leave(EndOid grpOid, EndOid userOid) {
+		members.remove(new Member(grpOid, userOid));
+	}
+	
 	public synchronized void addBuddies(EndOid oid, Set<EndOid> bOids) {
 		for (EndOid bOid : bOids) {
 			buddies.add(new Buddy(oid, bOid));

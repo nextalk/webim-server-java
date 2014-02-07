@@ -82,7 +82,7 @@ public class Router {
 		if (packet instanceof Presence) {
 			update((Presence) packet);
 		}
-		if (isGrpMessage(packet)) {
+		if (isGrpMessage(packet) || isGrpPresence(packet)) {
 			List<Member> members = roster.members(packet.toOid);
 			for (Member member : members) {
 				if (!packet.fromOid.equals(member.userOid)) {
@@ -118,9 +118,18 @@ public class Router {
 		}
 		return false;
 	}
+	
+	private boolean isGrpPresence(Packet packet) {
+		if (packet instanceof Presence) {
+			return "join".equals(((Presence) packet).type) || "leave".equals(((Presence) packet).type);
+		}
+		return false;
+	}
 
 
 	private void update(Presence p) {
+        if(!p.type.equals("show") return;
+        
 		Endpoint ep = registry.get(p.fromOid);
 		if (ep != null) {
 			if (!ep.show.equals(p.show))
@@ -213,8 +222,11 @@ public class Router {
 			routes.put(key, subscribers);
 		}
 		// clean endpoints
-		keys = registry.keySet();
-		for (EndOid key : keys) {
+		Iterator<EndOid> keysIter = registry.keySet().iterator();
+		
+//		for (EndOid key : keys) {
+		while (keysIter.hasNext()) {
+			EndOid key = keysIter.next();
 			Endpoint ep = registry.get(key);
 			if (ep.idle && (ep.idleTime + 8000) < now) {
 				System.out.println("Clean Endpoint: " + key);
@@ -229,12 +241,42 @@ public class Router {
 					route(null, p);
 				}
 				// remove
-				registry.remove(key);
+//				registry.remove(key);
+				keysIter.remove();
 				routes.remove(key);
 				roster.clean(key);
 			}
 		}
 
+	}
+	/**
+	 * 群组加入，发送Join Presence消息。
+	 * 
+	 * @param grpOid
+	 * @param userOid
+	 */
+	public void join(EndOid grpOid, EndOid userOid) {
+		roster.join(grpOid, userOid);
+		Presence p = new Presence("join", userOid, grpOid);
+		Endpoint ep = lookup(userOid);
+		if(ep != null) {
+			p.setNick(ep.nick);
+			p.setShow("available");
+			p.setStatus(grpOid.name);
+		}
+		route(null, p);
+	}
+	
+	public void leave(EndOid grpOid, EndOid userOid) {
+		roster.leave(grpOid, userOid);
+		Presence p = new Presence("leave", userOid, grpOid);
+		Endpoint ep = lookup(userOid);
+		if(ep != null) {
+			p.setNick(ep.nick);
+			p.setShow("available");
+			p.setStatus(grpOid.name);
+		}
+		route(null, p);
 	}
 
 }

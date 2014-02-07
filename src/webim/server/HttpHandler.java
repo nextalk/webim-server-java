@@ -250,10 +250,12 @@ public class HttpHandler extends AbstractHandler {
 	private void handleGroupLeave(Request baseRequest,
 			HttpServletRequest request, HttpServletResponse response)
 			throws IOException {
-		// TODO Auto-generated method stub
-		// String domain = g(request, "domain");
-		// Ticket ticket = Ticket.parse(g(request, "ticket"));
-		// EndOid useroid = makeoid(domain, ticket);
+		String domain = request.getParameter("domain");
+		Ticket ticket = Ticket.parse(request.getParameter("ticket"));
+		EndOid useroid = makeoid(domain, ticket);
+		String gid = g(request, "group");
+		EndOid grpOid = new EndOid(domain, "gid", gid);
+		router.leave(grpOid, useroid);
 		jsonReturn(JSONResult.SUCCESS, response);
 	}
 
@@ -274,8 +276,7 @@ public class HttpHandler extends AbstractHandler {
 		String gid = g(request, "group");
 		// String nick = g(request, "nick");
 		EndOid grpOid = new EndOid(domain, "gid", gid);
-		router.roster().join(grpOid, useroid);
-
+		router.join(grpOid, useroid);
 		Map<String, Integer> data = new HashMap<String, Integer>();
 		data.put(gid, router.roster().members(grpOid).size());
 		jsonReturn(new JSONResult(data), response);
