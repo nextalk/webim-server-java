@@ -128,7 +128,7 @@ public class Router {
 
 
 	private void update(Presence p) {
-        if(!p.type.equals("show") return;
+        if(!p.type.equals("show")) return;
         
 		Endpoint ep = registry.get(p.fromOid);
 		if (ep != null) {
@@ -164,6 +164,15 @@ public class Router {
 			presence.setNick(endpoint.nick);
 			presence.setStatus(endpoint.status);
 			route(ticket, presence);
+		}
+		
+		//join group presence
+		for(EndOid grpOid : endpoint.groupOids) {
+			Presence p = new Presence("join", endpoint.endOid, grpOid);
+			p.setNick(endpoint.nick);
+			p.setShow("available");
+			p.setStatus(grpOid.name);
+			route(ticket, p);
 		}
 		return ticket;
 	}
@@ -240,6 +249,14 @@ public class Router {
 					// TODO:
 					route(null, p);
 				}
+				//leave group presences
+				for(EndOid grpOid : ep.groupOids) {
+					Presence p = new Presence("leave", ep.endOid, grpOid);
+					p.setNick(ep.nick);
+					p.setShow("unavailable");
+					p.setStatus(grpOid.name);
+					route(null, p);
+				}
 				// remove
 //				registry.remove(key);
 				keysIter.remove();
@@ -250,7 +267,7 @@ public class Router {
 
 	}
 	/**
-	 * 群组加入，发送Join Presence消息。
+	 * Broadcast Join Presence
 	 * 
 	 * @param grpOid
 	 * @param userOid
