@@ -71,6 +71,16 @@ public class Roster {
 		}
 		return rtBuddies;
 	}
+	
+	public synchronized List<EndOid> groups(EndOid userOid) {
+		List<EndOid> rtGroups = new ArrayList<EndOid>();
+		for(Member m : members) {
+			if(m.userOid.equals(userOid)) {
+				rtGroups.add(m.grpOid);
+			}
+		}
+		return rtGroups;
+	}
 
 	public synchronized void clean(EndOid oid) {
 		Iterator<Buddy> it = buddies.iterator();

@@ -121,11 +121,12 @@ public class Router {
 	
 	private boolean isGrpPresence(Packet packet) {
 		if (packet instanceof Presence) {
-			return "join".equals(((Presence) packet).type) || "leave".equals(((Presence) packet).type);
+			String type = ((Presence) packet).type;
+			return "join".equals(type) || "leave".equals(type) 
+					|| "grponline".equals(type) || "grpoffline".equals(type);
 		}
 		return false;
 	}
-
 
 	private void update(Presence p) {
         if(!p.type.equals("show")) return;
@@ -146,7 +147,7 @@ public class Router {
 		EndOid oid = endpoint.endOid;
 		registry.put(oid, endpoint);
 		roster.addBuddies(oid, endpoint.buddyOids);
-		roster.joinGroups(oid, endpoint.groupOids);
+		roster.joinGroups(oid, endpoint.roomOids);
 
 		Ticket ticket = new Ticket(oid.clazz, oid.name);
 		Subscriber subscriber = new Subscriber(ticket);
@@ -167,8 +168,8 @@ public class Router {
 		}
 		
 		//join group presence
-		for(EndOid grpOid : endpoint.groupOids) {
-			Presence p = new Presence("join", endpoint.endOid, grpOid);
+		for(EndOid grpOid : endpoint.roomOids) {
+			Presence p = new Presence("grponline", endpoint.endOid, grpOid);
 			p.setNick(endpoint.nick);
 			p.setShow("available");
 			p.setStatus(grpOid.name);
@@ -207,7 +208,7 @@ public class Router {
 
 	protected synchronized void clean() {
 		long now = System.currentTimeMillis();
-		System.out.println("begin to clean: " + now);
+		//System.out.println("begin to clean: " + now);
 		// clean subscribers
 		Set<EndOid> keys = routes.keySet();
 		for (EndOid key : keys) {
@@ -250,8 +251,8 @@ public class Router {
 					route(null, p);
 				}
 				//leave group presences
-				for(EndOid grpOid : ep.groupOids) {
-					Presence p = new Presence("leave", ep.endOid, grpOid);
+				for(EndOid grpOid : roster.groups(key)) {
+					Presence p = new Presence("grpoffline", ep.endOid, grpOid);
 					p.setNick(ep.nick);
 					p.setShow("unavailable");
 					p.setStatus(grpOid.name);

@@ -84,12 +84,12 @@ public class HttpHandler extends AbstractHandler {
 			handleMessages(baseRequest, request, response);
 		} else if (target.equals("/v5/packets")) {
 			handlePackets(baseRequest, request, response);
-		} else if (target.equals("/v5/group/members")) {
-			handleGroupMembers(baseRequest, request, response);
-		} else if (target.equals("/v5/group/join")) {
-			handleGroupJoin(baseRequest, request, response);
-		} else if (target.equals("/v5/group/leave")) {
-			handleGroupLeave(baseRequest, request, response);
+		} else if ( target.startsWith("/v5/rooms") && target.endsWith("members") ) {
+			handleRoomMembers(baseRequest, request, response);
+		} else if ( target.startsWith("/v5/rooms") && target.endsWith("join") ) {
+			handleRoomJoin(baseRequest, request, response);
+		} else if (  target.startsWith("/v5/rooms") && target.endsWith("leave") ) {
+			handleRoomLeave(baseRequest, request, response);
 		} else {
 			jsonReturn(new JSONResult(
 					"{\"status\": \"error\", \"message\": \"Bad Request\"}"),
@@ -118,7 +118,7 @@ public class HttpHandler extends AbstractHandler {
 		String domain = g(request, "domain");
 		String nick = g(request, "nick");
 		String name = g(request, "name");
-		String groups = g(request, "groups");
+		String rooms = g(request, "rooms");
 		String buddies = g(request, "buddies");
 		String show = g(request, "show");
 		if (show == null)
@@ -135,15 +135,15 @@ public class HttpHandler extends AbstractHandler {
 				buddyOids.add(new EndOid(domain, "uid", id));
 			}
 		}
-		Set<EndOid> groupOids = new HashSet<EndOid>();
-		if (!groups.trim().isEmpty()) {
-			for (String id : groups.split(",")) {
-				groupOids.add(new EndOid(domain, "gid", id));
+		Set<EndOid> roomOids = new HashSet<EndOid>();
+		if (!rooms.trim().isEmpty()) {
+			for (String id : rooms.split(",")) {
+				roomOids.add(new EndOid(domain, "gid", id));
 			}
 		}
 		Endpoint endpoint = new Endpoint(userOid, nick);
 		endpoint.setBuddies(buddyOids);
-		endpoint.setGroups(groupOids);
+		endpoint.setRooms(roomOids);
 		endpoint.setShow(show);
 		endpoint.setStatus(status);
 
@@ -157,18 +157,12 @@ public class HttpHandler extends AbstractHandler {
 			}
 		}
 
-		Map<String, Integer> rooms = new HashMap<String, Integer>();
-		for (EndOid oid : groupOids) {
-			rooms.put(oid.name, router.roster().members(oid).size());
-		}
-
 		Map<String, Object> data = new HashMap<String, Object>();
 		data.put("success", true);
 		data.put("ticket", ticket.toString());
 		data.put("server", config.url() + "/v5/packets");
 		data.put("jsonpd", config.url() + "/v5/packets");
-		data.put("groups", rooms);
-		data.put("buddies", presences);
+		data.put("presences", presences);
 		jsonReturn(new JSONResult(data), response);
 	}
 
@@ -211,24 +205,21 @@ public class HttpHandler extends AbstractHandler {
 		jsonReturn(JSONResult.SUCCESS, response);
 	}
 
-	private void handleGroupMembers(Request baseRequest,
+	private void handleRoomMembers(Request baseRequest,
 			HttpServletRequest request, HttpServletResponse response)
 			throws IOException {
 		String domain = g(request, "domain");
 		Ticket ticket = Ticket.parse(g(request, "ticket"));
 		EndOid userOid = makeoid(domain, ticket);
 		if (router.lookup(userOid) != null) {
-			String gid = g(request, "group");
+			String gid = g(request, "room");
 			EndOid grpOid = new EndOid(domain, "gid", gid);
 			List<Member> members = router.roster().members(grpOid);
-			List<Map<String, String>> result = new ArrayList<Map<String, String>>();
+			Map<String, String> result = new HashMap<String, String>();
 			for (Member m : members) {
 				Endpoint ep = router.lookup(m.userOid);
 				if (ep != null) {
-					Map<String, String> row = new HashMap<String, String>();
-					row.put("id", m.userOid.name);
-					row.put("nick", ep.nick);
-					result.add(row);
+					result.put(ep.endOid.name, ep.show);
 				}
 			}
 			jsonReturn(new JSONResult(result), response);
@@ -247,13 +238,13 @@ public class HttpHandler extends AbstractHandler {
 	 * @param response
 	 * @throws IOException
 	 */
-	private void handleGroupLeave(Request baseRequest,
+	private void handleRoomLeave(Request baseRequest,
 			HttpServletRequest request, HttpServletResponse response)
 			throws IOException {
 		String domain = request.getParameter("domain");
 		Ticket ticket = Ticket.parse(request.getParameter("ticket"));
 		EndOid useroid = makeoid(domain, ticket);
-		String gid = g(request, "group");
+		String gid = g(request, "room");
 		EndOid grpOid = new EndOid(domain, "gid", gid);
 		router.leave(grpOid, useroid);
 		jsonReturn(JSONResult.SUCCESS, response);
@@ -267,19 +258,17 @@ public class HttpHandler extends AbstractHandler {
 	 * @param response
 	 * @throws IOException
 	 */
-	private void handleGroupJoin(Request baseRequest,
+	private void handleRoomJoin(Request baseRequest,
 			HttpServletRequest request, HttpServletResponse response)
 			throws IOException {
 		String domain = request.getParameter("domain");
 		Ticket ticket = Ticket.parse(request.getParameter("ticket"));
 		EndOid useroid = makeoid(domain, ticket);
-		String gid = g(request, "group");
+		String gid = g(request, "room");
 		// String nick = g(request, "nick");
 		EndOid grpOid = new EndOid(domain, "gid", gid);
 		router.join(grpOid, useroid);
-		Map<String, Integer> data = new HashMap<String, Integer>();
-		data.put(gid, router.roster().members(grpOid).size());
-		jsonReturn(new JSONResult(data), response);
+		jsonReturn(JSONResult.SUCCESS, response);
 	}
 
 	private void handlePackets(Request baseRequest, HttpServletRequest request,

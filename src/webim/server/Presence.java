@@ -52,6 +52,7 @@ public class Presence extends Packet {
 	@Override
 	public void feed(Map<String, String> data) {
 		data.put("from", fromOid.name);
+		data.put("to", toOid.name);
 		data.put("nick", nick);
 		data.put("type", type);
 		data.put("show", show);

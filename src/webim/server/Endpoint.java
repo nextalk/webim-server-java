@@ -28,12 +28,9 @@ public class Endpoint {
 	String status;
 	String nick;
 	Set<EndOid> buddyOids;
-	Set<EndOid> groupOids;
+	Set<EndOid> roomOids;
 	String show;
 
-	/**
-	 * idle？
-	 */
 	boolean idle = false;
 	long idleTime = -1;
 	
@@ -46,8 +43,8 @@ public class Endpoint {
 		this.buddyOids = buddyOids;
 	}
 
-	public void setGroups(Set<EndOid> groupOids) {
-		this.groupOids = groupOids;
+	public void setRooms(Set<EndOid> groupOids) {
+		this.roomOids = groupOids;
 	}
 
 	public void setShow(String show) {
