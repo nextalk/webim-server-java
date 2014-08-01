@@ -231,7 +231,7 @@ public class HttpHandler extends AbstractHandler {
 	}
 
 	/**
-	 * TODO: 离开群组
+	 * TODO: 靠靠
 	 * 
 	 * @param baseRequest
 	 * @param request
@@ -403,14 +403,49 @@ public class HttpHandler extends AbstractHandler {
 		String status = request.getParameter("status");
 		if (status == null)
 			status = "";
-		List<Buddy> buddies = router.roster().buddies(userOid);
-		for (Buddy b : buddies) {
-			Presence presence = new Presence("show", userOid, b.fid);
-			presence.setNick(nick);
-			presence.setShow(show);
-			presence.setStatus(status);
-			router.route(ticket, presence);
-		}
+
+        //set show
+		Endpoint ep = router.lookup(userOid);
+        if(ep != null) {
+            //update ep show
+            String oldShow = ep.show;
+            ep.show = show;
+            //broadcase offline presence
+            List<Buddy> buddies = router.roster().buddies(userOid);
+            for (Buddy b : buddies) {
+                Presence presence;
+                if(show.equals("invisible")) { 
+                    presence = new Presence("offline", userOid, b.fid);
+                    presence.setShow("unavailable");
+                } else {
+                    presence = new Presence("show", userOid, b.fid);
+                    presence.setShow(show);
+                }
+                presence.setNick(nick);
+                presence.setStatus(status);
+                router.route(ticket, presence);
+            }
+            
+            //broadcast grpoffline presence
+            if(show.equals("invisible")) {
+                for(EndOid grpOid : ep.roomOids) {
+                    Presence p = new Presence("grpoffline", userOid, grpOid);
+                    p.setNick(nick);
+                    p.setShow("unavailable");
+                    p.setStatus(grpOid.name);
+                    router.route(ticket, p);
+                }
+            } else if(oldShow.equals("invisible")) {//grponline
+                for(EndOid grpOid : ep.roomOids) {
+                    Presence p = new Presence("grponline", userOid, grpOid);
+                    p.setNick(nick);
+                    p.setShow(show);
+                    p.setStatus(grpOid.name);
+                    router.route(ticket, p);
+                }
+            }
+        }
+		
 		jsonReturn(JSONResult.SUCCESS, response);
 	}
 

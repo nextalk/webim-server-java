@@ -53,7 +53,11 @@ public class Router {
 		timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
-				clean();
+				try{
+					clean();
+				} catch(Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}, 10 * 1000, 8 * 1000);
 	}
@@ -82,13 +86,22 @@ public class Router {
 		if (packet instanceof Presence) {
 			update((Presence) packet);
 		}
-		if (isGrpMessage(packet) || isGrpPresence(packet)) {
+        if(isGrpMessage(packet)) {
 			List<Member> members = roster.members(packet.toOid);
 			for (Member member : members) {
-				if (!packet.fromOid.equals(member.userOid)) {
-					route(ticket, member.userOid, packet);
-				}
+                if( !packet.fromOid.equals(member.userOid) ) { 
+                    route(ticket, member.userOid, packet);
+                }
 			}
+        } else if (isGrpPresence(packet)) {
+			List<Member> members = roster.members(packet.toOid);
+			for (Member member : members) {
+                String type = ((Presence) packet).type;
+                if( ("join".equals(type) || "leave".equals(type)) && 
+                    packet.fromOid.equals(member.userOid) ) continue;
+                route(ticket, member.userOid, packet);
+            }
+        
 		} else {
 			route(ticket, packet.toOid, packet);
 		}
@@ -127,6 +140,7 @@ public class Router {
 		}
 		return false;
 	}
+
 
 	private void update(Presence p) {
         if(!p.type.equals("show")) return;
@@ -208,7 +222,8 @@ public class Router {
 
 	protected synchronized void clean() {
 		long now = System.currentTimeMillis();
-		//System.out.println("begin to clean: " + now);
+		
+//		System.out.println("begin to clean: " + now);
 		// clean subscribers
 		Set<EndOid> keys = routes.keySet();
 		for (EndOid key : keys) {
@@ -218,9 +233,17 @@ public class Router {
 				Subscriber sub = it.next();
 				if ((sub.continuation == null || sub.continuation.isExpired())
 						&& ((sub.lastActive + 8000) < now)) {
-					System.out.println("Clean Sub: " + sub);
+					System.out.println("Clean NoTimeout Sub: " + sub);
 					it.remove();
-				}
+				} else if((sub.lastActive + 28000) < now) {
+                    System.out.println("Clean Timeout Sub: " + sub);
+                    //TODO: when continuation cannot be expired
+                    if (sub.continuation !=null && sub.continuation.isSuspended()) {
+                        sub.continuation.resume();
+                        sub.continuation = null;
+                    }
+                    it.remove();
+                }
 			}
 			if (subscribers.size() == 0) {
 				Endpoint ep = registry.get(key);
@@ -239,7 +262,7 @@ public class Router {
 			EndOid key = keysIter.next();
 			Endpoint ep = registry.get(key);
 			if (ep.idle && (ep.idleTime + 8000) < now) {
-				System.out.println("Clean Endpoint: " + key);
+				//System.out.println("Clean Endpoint: " + key);
 				// presence
 				List<Buddy> buddies = roster.buddies(key);
 				for (Buddy b : buddies) {
